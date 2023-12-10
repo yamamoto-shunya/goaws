@@ -26,20 +26,87 @@ func (s *SqsErrorType) Error() string {
 var SqsErrors map[string]SqsErrorType
 
 type Message struct {
-	MessageBody            []byte
-	Uuid                   string
-	MD5OfMessageAttributes string
-	MD5OfMessageBody       string
-	ReceiptHandle          string
-	ReceiptTime            time.Time
-	VisibilityTimeout      time.Time
-	NumberOfReceives       int
-	Retry                  int
-	MessageAttributes      map[string]MessageAttributeValue
-	GroupID                string
-	DeduplicationID        string
-	SentTime               time.Time
-	DelaySecs              int
+	MessageBody                  []byte
+	Uuid                         string
+	MD5OfMessageAttributes       string
+	MD5OfMessageSystemAttributes string
+	MD5OfMessageBody             string
+	ReceiptHandle                string
+	ReceiptTime                  time.Time
+	VisibilityTimeout            time.Time
+	NumberOfReceives             int
+	Retry                        int
+	MessageAttributes            map[string]*MessageAttributeValue
+	MessageSystemAttributes      map[string]*MessageAttributeValue
+	GroupID                      string
+	DeduplicationID              string
+	SentTime                     time.Time
+	DelaySecs                    int
+}
+
+func (m *Message) ExtractAttributes(names []string) Attributes {
+	funcMap := registerAttributes()
+	attrs := make(Attributes)
+	for _, n := range names {
+		if n == "All" {
+			for attrName, f := range funcMap {
+				if f != nil {
+					attrs[attrName] = f(m)
+				}
+			}
+		}
+		if f, ok := funcMap[n]; ok {
+			attrs[n] = f(m)
+		}
+	}
+	if len(attrs) == 0 {
+		return nil
+	}
+	return attrs
+}
+
+type attrFunc func(m *Message) string
+type attrFuncMap map[string]attrFunc
+
+// registerAttributes
+//
+//	"All" is defined in ReceiveMessage()
+func registerAttributes() attrFuncMap {
+	return map[string]attrFunc{
+		"ApproximateFirstReceiveTimestamp": approximateFirstReceiveTimestamp,
+		"ApproximateReceiveCount":          approximateReceiveCount,
+		"AWSTraceHeader":                   nil, // not implemented
+		"SenderId":                         senderId,
+		"SentTimestamp":                    sentTimestamp,
+		"SqsManagedSseEnabled":             nil, // not implemented
+		"MessageDeduplicationId":           messageDeduplicationId,
+		"MessageGroupId":                   messageGroupId,
+		"SequenceNumber":                   nil, // not implemented
+	}
+}
+
+func approximateFirstReceiveTimestamp(m *Message) string {
+	return fmt.Sprintf("%d", m.ReceiptTime.UnixNano()/int64(time.Millisecond))
+}
+
+func approximateReceiveCount(m *Message) string {
+	return fmt.Sprintf("%d", m.NumberOfReceives+1)
+}
+
+func senderId(_ *Message) string {
+	return CurrentEnvironment.AccountID
+}
+
+func sentTimestamp(_ *Message) string {
+	return fmt.Sprintf("%d", time.Now().UTC().UnixNano()/int64(time.Millisecond))
+}
+
+func messageDeduplicationId(m *Message) string {
+	return m.DeduplicationID
+}
+
+func messageGroupId(m *Message) string {
+	return m.GroupID
 }
 
 func (m *Message) IsReadyForReceipt() bool {
@@ -71,29 +138,32 @@ func getRandomLatency() (time.Duration, error) {
 	return randomDuration, nil
 }
 
+// MessageAttributeValue imitates sqs.MessageAttributeValue
 type MessageAttributeValue struct {
-	Name     string
-	DataType string
-	Value    string
-	ValueKey string
+	BinaryListValues [][]byte `json:"BinaryListValues,omitempty"` // Not implemented. Reserved for future use.
+	BinaryValue      []byte   `json:"BinaryValue,omitempty"`
+	DataType         string   `json:"DataType"`
+	StringListValues []string `json:"StringListValues,omitempty"` // Not implemented. Reserved for future use.
+	StringValue      string   `json:"StringValue,omitempty"`
 }
 
 type Queue struct {
-	Name                string
-	URL                 string
-	Arn                 string
-	TimeoutSecs         int
-	ReceiveWaitTimeSecs int
-	DelaySecs           int
-	MaximumMessageSize  int
-	Messages            []Message
-	DeadLetterQueue     *Queue
-	MaxReceiveCount     int
-	IsFIFO              bool
-	FIFOMessages        map[string]int
-	FIFOSequenceNumbers map[string]int
-	EnableDuplicates    bool
-	Duplicates          map[string]time.Time
+	Name                   string
+	URL                    string
+	Arn                    string
+	TimeoutSecs            int
+	ReceiveWaitTimeSecs    int
+	DelaySecs              int
+	MaximumMessageSize     int
+	Messages               []Message
+	DeadLetterQueue        *Queue
+	MaxReceiveCount        int
+	IsFIFO                 bool
+	FIFOMessages           map[string]int
+	FIFOSequenceNumbers    map[string]int
+	EnableDuplicates       bool
+	Duplicates             map[string]time.Time
+	QueueOwnerAWSAccountId string
 }
 
 var SyncQueues = struct {

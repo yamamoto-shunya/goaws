@@ -29,7 +29,7 @@ func TestGetMD5Hash(t *testing.T) {
 }
 
 func TestSortedKeys(t *testing.T) {
-	attributes := map[string]app.MessageAttributeValue{
+	attributes := map[string]*app.MessageAttributeValue{
 		"b": {},
 		"a": {},
 	}

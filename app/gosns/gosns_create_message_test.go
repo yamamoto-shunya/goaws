@@ -27,7 +27,7 @@ func TestCreateMessageBody_NonJson(t *testing.T) {
 		Raw:             false,
 	}
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureEmpty, make(map[string]app.MessageAttributeValue))
+	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureEmpty, make(map[string]*app.MessageAttributeValue))
 	if err != nil {
 		t.Fatalf(`error creating SNS message: %s`, err)
 	}
@@ -215,9 +215,12 @@ func TestCreateMessageBody_WithMessageAttributes(t *testing.T) {
 		SubscriptionArn: "subs-arn",
 		Raw:             false,
 	}
-	stringMessageAttributeValue := app.MessageAttributeValue{ValueKey: "StringValue", Value: "test", DataType: "String"}
-	attributes := map[string]app.MessageAttributeValue{
-		stringMessageAttributeValue.DataType: stringMessageAttributeValue,
+	key := "StringValue"
+	attributes := map[string]*app.MessageAttributeValue{
+		key: {
+			DataType:    "String",
+			StringValue: "test",
+		},
 	}
 	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureEmpty, attributes)
 	if err != nil {
@@ -241,9 +244,9 @@ func TestCreateMessageBody_WithMessageAttributes(t *testing.T) {
 		t.Fatalf(`SNS messageAttributes is invalid interface`)
 	}
 
-	attribute, ok := attributesMap[stringMessageAttributeValue.DataType]
+	attribute, ok := attributesMap[key]
 	if !ok {
-		t.Fatalf(`SNS messageAttributes does not contain key "%s"`, stringMessageAttributeValue.DataType)
+		t.Fatalf(`SNS messageAttributes does not contain key "%s"`, key)
 	}
 
 	attributeMap, ok := attribute.(map[string]interface{})
@@ -251,13 +254,13 @@ func TestCreateMessageBody_WithMessageAttributes(t *testing.T) {
 		t.Fatalf(`SNS messageAttribute is invalid interface`)
 	}
 
-	attributeType, _ := attributeMap["Type"]
-	if attributeType != stringMessageAttributeValue.DataType {
-		t.Fatalf(`expected Type "%s" but received %s`, stringMessageAttributeValue.DataType, attributeType)
+	attributeType, _ := attributeMap["DataType"]
+	if attributeType != attributes[key].DataType {
+		t.Fatalf(`expected Type "%s" but received %s`, attributes[key].DataType, attributeType)
 	}
 
-	attributeValue, _ := attributeMap["Value"]
-	if attributeValue != stringMessageAttributeValue.Value {
-		t.Fatalf(`expected Value "%s" but received %s`, stringMessageAttributeValue.Value, attributeValue)
+	attributeValue, _ := attributeMap["StringValue"]
+	if attributeValue != attributes[key].StringValue {
+		t.Fatalf(`expected Value "%s" but received %s`, attributes[key].StringValue, attributeValue)
 	}
 }

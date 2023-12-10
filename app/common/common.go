@@ -36,7 +36,7 @@ func GetMD5Hash(text string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func HashAttributes(attributes map[string]app.MessageAttributeValue) string {
+func HashAttributes(attributes map[string]*app.MessageAttributeValue) string {
 	hasher := md5.New()
 
 	keys := sortedKeys(attributes)
@@ -45,20 +45,24 @@ func HashAttributes(attributes map[string]app.MessageAttributeValue) string {
 
 		addStringToHash(hasher, key)
 		addStringToHash(hasher, attributeValue.DataType)
-		if attributeValue.ValueKey == "StringValue" {
+		switch attributeValue.DataType {
+		case "String", "Number":
 			hasher.Write([]byte{1})
-			addStringToHash(hasher, attributeValue.Value)
-		} else if attributeValue.ValueKey == "BinaryValue" {
+			addStringToHash(hasher, attributeValue.StringValue)
+		case "Binary":
 			hasher.Write([]byte{2})
-			bytes, _ := base64.StdEncoding.DecodeString(attributeValue.Value)
+			bytes, _ := base64.StdEncoding.DecodeString(attributeValue.StringValue)
 			addBytesToHash(hasher, bytes)
+		case "String.Array":
+			hasher.Write([]byte{3})
+			addStringToHash(hasher, attributeValue.StringListValues...)
 		}
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func sortedKeys(attributes map[string]app.MessageAttributeValue) []string {
+func sortedKeys(attributes map[string]*app.MessageAttributeValue) []string {
 	var keys []string
 	for key := range attributes {
 		keys = append(keys, key)
@@ -67,9 +71,11 @@ func sortedKeys(attributes map[string]app.MessageAttributeValue) []string {
 	return keys
 }
 
-func addStringToHash(hasher hash.Hash, str string) {
-	bytes := []byte(str)
-	addBytesToHash(hasher, bytes)
+func addStringToHash(hasher hash.Hash, strs ...string) {
+	for _, str := range strs {
+		bytes := []byte(str)
+		addBytesToHash(hasher, bytes)
+	}
 }
 
 func addBytesToHash(hasher hash.Hash, arr []byte) {
