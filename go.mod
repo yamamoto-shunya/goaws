@@ -3,8 +3,9 @@ module github.com/Admiral-Piett/goaws
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go v1.47.3
+	github.com/aws/aws-sdk-go v1.48.14
 	github.com/ghodss/yaml v1.0.0
+	github.com/google/go-cmp v0.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.7.0

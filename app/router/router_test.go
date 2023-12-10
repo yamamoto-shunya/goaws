@@ -1,6 +1,9 @@
 package router
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/Admiral-Piett/goaws/app"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -40,10 +43,7 @@ func TestIndexServerhandler_POST_GoodRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	form := url.Values{}
-	form.Add("Action", "ListTopics")
-	req.PostForm = form
+	req.Header.Set("X-Amz-Target", "AmazonSQS.ListTopics")
 
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr := httptest.NewRecorder()
@@ -61,21 +61,26 @@ func TestIndexServerhandler_POST_GoodRequest(t *testing.T) {
 
 func TestIndexServerhandler_POST_GoodRequest_With_URL(t *testing.T) {
 
-	req, err := http.NewRequest("POST", "/100010001000/local-queue1", nil)
+	b, err := json.Marshal(app.CreateQueueInput{
+		QueueName: "local-queue1",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	req, err := http.NewRequest("POST", "/100010001000/local-queue1", bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("X-Amz-Target", "AmazonSQS.CreateQueue")
 
-	form := url.Values{}
-	form.Add("Action", "CreateQueue")
-	form.Add("QueueName", "local-queue1")
-	req.PostForm = form
 	rr := httptest.NewRecorder()
 	New().ServeHTTP(rr, req)
 
-	form = url.Values{}
-	form.Add("Action", "GetQueueAttributes")
-	req.PostForm = form
+	req, err = http.NewRequest("POST", "/100010001000/local-queue1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("X-Amz-Target", "AmazonSQS.GetQueueAttributes")
 
 	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
 	rr = httptest.NewRecorder()

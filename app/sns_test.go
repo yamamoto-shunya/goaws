@@ -7,43 +7,43 @@ import (
 func TestFilterPolicy_IsSatisfiedBy(t *testing.T) {
 	var tests = []struct {
 		filterPolicy      *FilterPolicy
-		messageAttributes map[string]MessageAttributeValue
+		messageAttributes map[string]*MessageAttributeValue
 		expected          bool
 	}{
 		{
 			&FilterPolicy{"foo": {"bar"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "String", Value: "bar"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "String", StringValue: "bar"}},
 			true,
 		},
 		{
 			&FilterPolicy{"foo": {"bar", "xyz"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "String", Value: "xyz"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "String", StringValue: "xyz"}},
 			true,
 		},
 		{
 			&FilterPolicy{"foo": {"bar", "xyz"}, "abc": {"def"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "String", Value: "xyz"},
-				"abc": {DataType: "String", Value: "def"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "String", StringValue: "xyz"},
+				"abc": {DataType: "String", StringValue: "def"}},
 			true,
 		},
 		{
 			&FilterPolicy{"foo": {"bar"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "String", Value: "baz"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "String", StringValue: "baz"}},
 			false,
 		},
 		{
 			&FilterPolicy{"foo": {"bar"}},
-			map[string]MessageAttributeValue{},
+			map[string]*MessageAttributeValue{},
 			false,
 		},
 		{
 			&FilterPolicy{"foo": {"bar"}, "abc": {"def"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "String", Value: "bar"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "String", StringValue: "bar"}},
 			false,
 		},
 		{
 			&FilterPolicy{"foo": {"bar"}},
-			map[string]MessageAttributeValue{"foo": {DataType: "Binary", Value: "bar"}},
+			map[string]*MessageAttributeValue{"foo": {DataType: "Binary", StringValue: "bar"}},
 			false,
 		},
 	}

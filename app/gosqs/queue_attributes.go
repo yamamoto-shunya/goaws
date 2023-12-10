@@ -2,9 +2,7 @@ package gosqs
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -29,21 +27,20 @@ var (
 // validateAndSetQueueAttributes applies the requested queue attributes to the given
 // queue.
 // TODO Currently it only supports VisibilityTimeout, MaximumMessageSize, DelaySeconds, RedrivePolicy and ReceiveMessageWaitTimeSeconds  attributes.
-func validateAndSetQueueAttributes(q *app.Queue, u url.Values) error {
-	attr := extractQueueAttributes(u)
-	visibilityTimeout, _ := strconv.Atoi(attr["VisibilityTimeout"])
+func validateAndSetQueueAttributes(q *app.Queue, attrs app.Attributes) error {
+	visibilityTimeout, _ := strconv.Atoi(attrs["VisibilityTimeout"])
 	if visibilityTimeout != 0 {
 		q.TimeoutSecs = visibilityTimeout
 	}
-	receiveWaitTime, _ := strconv.Atoi(attr["ReceiveMessageWaitTimeSeconds"])
+	receiveWaitTime, _ := strconv.Atoi(attrs["ReceiveMessageWaitTimeSeconds"])
 	if receiveWaitTime != 0 {
 		q.ReceiveWaitTimeSecs = receiveWaitTime
 	}
-	maximumMessageSize, _ := strconv.Atoi(attr["MaximumMessageSize"])
+	maximumMessageSize, _ := strconv.Atoi(attrs["MaximumMessageSize"])
 	if maximumMessageSize != 0 {
 		q.MaximumMessageSize = maximumMessageSize
 	}
-	strRedrivePolicy := attr["RedrivePolicy"]
+	strRedrivePolicy := attrs["RedrivePolicy"]
 	if strRedrivePolicy != "" {
 		// support both int and string maxReceiveCount (Amazon clients use string)
 		redrivePolicy1 := struct {
@@ -78,28 +75,10 @@ func validateAndSetQueueAttributes(q *app.Queue, u url.Values) error {
 		q.DeadLetterQueue = deadLetterQueue
 		q.MaxReceiveCount = maxReceiveCount
 	}
-	delaySecs, _ := strconv.Atoi(attr["DelaySeconds"])
+	delaySecs, _ := strconv.Atoi(attrs["DelaySeconds"])
 	if delaySecs != 0 {
 		q.DelaySecs = delaySecs
 	}
 
 	return nil
-}
-
-func extractQueueAttributes(u url.Values) map[string]string {
-	attr := map[string]string{}
-	for i := 1; true; i++ {
-		nameKey := fmt.Sprintf("Attribute.%d.Name", i)
-		attrName := u.Get(nameKey)
-		if attrName == "" {
-			break
-		}
-
-		valueKey := fmt.Sprintf("Attribute.%d.Value", i)
-		attrValue := u.Get(valueKey)
-		if attrValue != "" {
-			attr[attrName] = attrValue
-		}
-	}
-	return attr
 }

@@ -527,7 +527,7 @@ func Publish(w http.ResponseWriter, req *http.Request) {
 }
 
 func publishSQS(w http.ResponseWriter, req *http.Request,
-	subs *app.Subscription, messageBody string, messageAttributes map[string]app.MessageAttributeValue,
+	subs *app.Subscription, messageBody string, messageAttributes map[string]*app.MessageAttributeValue,
 	subject string, topicArn string, topicName string, messageStructure string) {
 	if subs.FilterPolicy != nil && !subs.FilterPolicy.IsSatisfiedBy(messageAttributes) {
 		return
@@ -573,7 +573,7 @@ func publishSQS(w http.ResponseWriter, req *http.Request,
 	}
 }
 
-func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes map[string]app.MessageAttributeValue,
+func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes map[string]*app.MessageAttributeValue,
 	subject string, topicArn string) {
 	id, _ := common.NewUUID()
 	msg := app.SNSMessage{
@@ -586,7 +586,7 @@ func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes m
 		SignatureVersion:  "1",
 		SigningCertURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/SimpleNotificationService/" + id + ".pem",
 		UnsubscribeURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
-		MessageAttributes: formatAttributes(messageAttributes),
+		MessageAttributes: messageAttributes,
 	}
 
 	signature, err := signMessage(PrivateKEY, &msg)
@@ -603,17 +603,6 @@ func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes m
 			"error":    err.Error(),
 		}).Error("Error calling endpoint")
 	}
-}
-
-func formatAttributes(values map[string]app.MessageAttributeValue) map[string]app.MsgAttr {
-	attr := make(map[string]app.MsgAttr)
-	for k, v := range values {
-		attr[k] = app.MsgAttr{
-			Type:  v.DataType,
-			Value: v.Value,
-		}
-	}
-	return attr
 }
 
 func callEndpoint(endpoint string, subArn string, msg app.SNSMessage, raw bool) error {
@@ -680,8 +669,8 @@ func callEndpoint(endpoint string, subArn string, msg app.SNSMessage, raw bool) 
 	return nil
 }
 
-func getMessageAttributesFromRequest(req *http.Request) map[string]app.MessageAttributeValue {
-	attributes := make(map[string]app.MessageAttributeValue)
+func getMessageAttributesFromRequest(req *http.Request) map[string]*app.MessageAttributeValue {
+	attributes := make(map[string]*app.MessageAttributeValue)
 
 	for i := 1; true; i++ {
 		name := req.FormValue(fmt.Sprintf("MessageAttributes.entry.%d.Name", i))
@@ -695,11 +684,14 @@ func getMessageAttributesFromRequest(req *http.Request) map[string]app.MessageAt
 			continue
 		}
 
-		// StringListValue and BinaryListValue is currently not implemented
+		//TODO: StringListValue and BinaryListValue is currently not implemented
 		for _, valueKey := range [...]string{"StringValue", "BinaryValue"} {
 			value := req.FormValue(fmt.Sprintf("MessageAttributes.entry.%d.Value.%s", i, valueKey))
 			if value != "" {
-				attributes[name] = app.MessageAttributeValue{name, dataType, value, valueKey}
+				attributes[name] = &app.MessageAttributeValue{
+					DataType:    dataType,
+					StringValue: value,
+				}
 			}
 		}
 
@@ -712,7 +704,7 @@ func getMessageAttributesFromRequest(req *http.Request) map[string]app.MessageAt
 }
 
 func CreateMessageBody(subs *app.Subscription, msg string, subject string, messageStructure string,
-	messageAttributes map[string]app.MessageAttributeValue) ([]byte, error) {
+	messageAttributes map[string]*app.MessageAttributeValue) ([]byte, error) {
 
 	msgId, _ := common.NewUUID()
 
@@ -725,7 +717,7 @@ func CreateMessageBody(subs *app.Subscription, msg string, subject string, messa
 		SignatureVersion:  "1",
 		SigningCertURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/SimpleNotificationService/" + msgId + ".pem",
 		UnsubscribeURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
-		MessageAttributes: formatAttributes(messageAttributes),
+		MessageAttributes: messageAttributes,
 	}
 
 	if app.MessageStructure(messageStructure) == app.MessageStructureJSON {

@@ -114,15 +114,16 @@ func LoadYamlConfig(filename string, env string) []string {
 		}
 
 		app.SyncQueues.Queues[queue.Name] = &app.Queue{
-			Name:                queue.Name,
-			TimeoutSecs:         queue.VisibilityTimeout,
-			Arn:                 queueArn,
-			URL:                 queueUrl,
-			ReceiveWaitTimeSecs: queue.ReceiveMessageWaitTimeSeconds,
-			MaximumMessageSize:  queue.MaximumMessageSize,
-			IsFIFO:              app.HasFIFOQueueName(queue.Name),
-			EnableDuplicates:    app.CurrentEnvironment.EnableDuplicates,
-			Duplicates:          make(map[string]time.Time),
+			Name:                   queue.Name,
+			TimeoutSecs:            queue.VisibilityTimeout,
+			Arn:                    queueArn,
+			URL:                    queueUrl,
+			ReceiveWaitTimeSecs:    queue.ReceiveMessageWaitTimeSeconds,
+			MaximumMessageSize:     queue.MaximumMessageSize,
+			IsFIFO:                 app.HasFIFOQueueName(queue.Name),
+			EnableDuplicates:       app.CurrentEnvironment.EnableDuplicates,
+			Duplicates:             make(map[string]time.Time),
+			QueueOwnerAWSAccountId: app.CurrentEnvironment.AccountID,
 		}
 	}
 
@@ -192,15 +193,16 @@ func createSqsSubscription(configSubscription app.EnvSubsciption, topicArn strin
 		}
 		queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + configSubscription.QueueName
 		app.SyncQueues.Queues[configSubscription.QueueName] = &app.Queue{
-			Name:                configSubscription.QueueName,
-			TimeoutSecs:         app.CurrentEnvironment.QueueAttributeDefaults.VisibilityTimeout,
-			Arn:                 queueArn,
-			URL:                 queueUrl,
-			ReceiveWaitTimeSecs: app.CurrentEnvironment.QueueAttributeDefaults.ReceiveMessageWaitTimeSeconds,
-			MaximumMessageSize:  app.CurrentEnvironment.QueueAttributeDefaults.MaximumMessageSize,
-			IsFIFO:              app.HasFIFOQueueName(configSubscription.QueueName),
-			EnableDuplicates:    app.CurrentEnvironment.EnableDuplicates,
-			Duplicates:          make(map[string]time.Time),
+			Name:                   configSubscription.QueueName,
+			TimeoutSecs:            app.CurrentEnvironment.QueueAttributeDefaults.VisibilityTimeout,
+			Arn:                    queueArn,
+			URL:                    queueUrl,
+			ReceiveWaitTimeSecs:    app.CurrentEnvironment.QueueAttributeDefaults.ReceiveMessageWaitTimeSeconds,
+			MaximumMessageSize:     app.CurrentEnvironment.QueueAttributeDefaults.MaximumMessageSize,
+			IsFIFO:                 app.HasFIFOQueueName(configSubscription.QueueName),
+			EnableDuplicates:       app.CurrentEnvironment.EnableDuplicates,
+			Duplicates:             make(map[string]time.Time),
+			QueueOwnerAWSAccountId: app.CurrentEnvironment.AccountID,
 		}
 	}
 	qArn := app.SyncQueues.Queues[configSubscription.QueueName].Arn

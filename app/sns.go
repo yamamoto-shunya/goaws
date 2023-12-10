@@ -29,8 +29,8 @@ type SNSMessage struct {
 	Signature         string `json:"Signature",omitempty`
 	SigningCertURL    string
 	UnsubscribeURL    string
-	SubscribeURL      string             `json:"SubscribeURL",omitempty`
-	MessageAttributes map[string]MsgAttr `json:"MessageAttributes",omitempty`
+	SubscribeURL      string                            `json:"SubscribeURL",omitempty`
+	MessageAttributes map[string]*MessageAttributeValue `json:"MessageAttributes",omitempty`
 }
 
 type Subscription struct {
@@ -45,22 +45,25 @@ type Subscription struct {
 // only simple "ExactMatch" string policy is supported at the moment
 type FilterPolicy map[string][]string
 
-// Function checks if MessageAttributes passed to Topic satisfy FilterPolicy set by subscription
-func (fp *FilterPolicy) IsSatisfiedBy(msgAttrs map[string]MessageAttributeValue) bool {
+// IsSatisfiedBy checks if MessageAttributes passed to Topic satisfy FilterPolicy set by subscription
+func (fp *FilterPolicy) IsSatisfiedBy(msgAttrs map[string]*MessageAttributeValue) bool {
 	for policyAttrName, policyAttrValues := range *fp {
 		attrValue, ok := msgAttrs[policyAttrName]
 		if !ok {
 			return false // the attribute has to be present in the message
 		}
 
-		// String, String.Array, Number data-types are allowed by SNS filter policies
-		// however go-AWS currently only supports String filter policies. That feature can be added here
-		// ref: https://docs.aws.amazon.com/sns/latest/dg/message-filtering.html
-		if attrValue.DataType != "String" {
-			return false
+		var exists bool
+		switch attrValue.DataType {
+		case "String", "Number":
+			exists = stringInSlice(policyAttrValues, attrValue.StringValue)
+		case "String.Array":
+			exists = stringInSlice(policyAttrValues, attrValue.StringListValues...)
+		case "Binary":
+			exists = stringInSlice(policyAttrValues, string(attrValue.BinaryValue))
 		}
 
-		if !stringInSlice(attrValue.Value, policyAttrValues) {
+		if !exists {
 			return false // the attribute value has to be among filtered ones
 		}
 	}
@@ -68,10 +71,12 @@ func (fp *FilterPolicy) IsSatisfiedBy(msgAttrs map[string]MessageAttributeValue)
 	return true
 }
 
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
+func stringInSlice(list []string, args ...string) bool {
+	for _, l := range list {
+		for _, a := range args {
+			if l == a {
+				return true
+			}
 		}
 	}
 	return false
